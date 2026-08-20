@@ -1,46 +1,56 @@
-# DA Document Generator
+# pdp-document-generator — DA tools container
 
-A browser-based tool for bulk-generating DA (Document Authoring) pages from product data and one or more DA document templates.
+A container repository that hosts **multiple standalone DA (Document Authoring) tools** side-by-side. Each tool is its own self-contained Vite + React app in its own top-level folder, built to `<tool>/dist/`, served as static files from AEM Edge Delivery Services (the "code bus"), and embedded in DA at its own URL.
 
-For a full technical walkthrough of every module and how they interact, see [ARCHITECTURE.md](./ARCHITECTURE.md).
+## Tools
 
-## What it does
+| Tool | Folder | Opens in DA at |
+|---|---|---|
+| **Document Generator** — bulk-generate DA pages from product data + templates | [`doc-generator/`](./doc-generator/) | https://da.live/app/maxn-adobe/pdp-document-generator/doc-generator/dist/index |
+| **Hello** — minimal proof-of-concept app | [`hello/`](./hello/) | https://da.live/app/maxn-adobe/pdp-document-generator/hello/dist/index |
 
-1. **Provide product data** — paste Zazzle product IDs directly, or upload a `.csv`/`.xlsx` file. Optionally run **Validate** (confirm each ID resolves to a real Zazzle product) and/or **Hydrate** (fill in missing columns — `title`, `short_title`, `description`, `url_slug`, etc. — from the matching Zazzle product, flagging anything that differs from manually-entered data). Duplicate product IDs/slugs and content issues (title length, casing, encoding, etc.) are surfaced inline. Additional columns beyond the recognized fields are substituted into the template as `{{column_name}}` placeholders.
-2. **Confirm routing** — a DA config sheet maps each row's `product_type` to a template path and output directory. Alternatively, check **Override template** to force every selected row through one chosen template/output directory regardless of product type. The tool validates the config sheet, the resolved template's structure, and the output directory before allowing generation.
-3. **Select rows and generate** — choose which rows to include, then generate: the tool substitutes placeholders, runs a QA check for leftover placeholders, versions any existing document before overwriting it, and writes the resulting HTML to DA via the admin API.
-4. **Preview, publish, unpublish, or delete** — per row or in bulk. Publishing additionally fetches the live page and QA-checks it for a title, meta description, and OG image.
+Append `?ref=<branch>` to preview a non-`main` branch, e.g. `…/hello/dist/index?ref=my-branch`.
 
-The **Generate** tab covers steps 1–4 above. A second **Document Manager** tab lets you point at any DA folder and manage documents that already exist there — regardless of which session created them. It recursively lists every document under that folder, lets you filter/sort by sub-directory, generate batch, and status, and offers the same preview/publish/unpublish/delete/edit actions (individually or in bulk) sourced from what's actually in DA rather than from an in-memory batch.
+## Repository layout
 
-## Usage
+```
+pdp-document-generator/
+├─ doc-generator/          # tool 1 — self-contained Vite app
+│  ├─ src/  index.html  vite.config.ts  package.json
+│  └─ dist/{ index.html, assets/ }   # built output (committed)
+├─ hello/                  # tool 2 — self-contained Vite app
+│  ├─ src/  index.html  vite.config.ts  package.json
+│  └─ dist/{ index.html, assets/ }   # built output (committed)
+├─ fstab.yaml              # repo-level: registers the EDS site
+├─ SERVING.md              # repo-level: how serving works + troubleshooting
+└─ README.md
+```
 
-### From DA.live (typical)
-This is how the tool is used the vast majority of the time. Open it from within DA.live at **https://da.live/app/maxn-adobe/pdp-document-generator/index** — DA loads the tool in an iframe (its "Nx Shell") and automatically injects an auth token (via `https://da.live/nx/utils/sdk.js`), so no token setup is required. Add `?ref=<branch>` to preview a non-`main` branch.
+Each tool is independent: its own `package.json`, `node_modules`, Vite config, and build. There is intentionally **no** root `package.json` — you work inside a tool's folder.
 
-### Local dev (rare — running outside DA.live)
-Only needed if you're running the app standalone, e.g. `npm run dev` opened directly in a plain browser tab rather than embedded in DA.live. In that case there's no DA shell to supply a token automatically, so you must provide one yourself:
+## Working on a tool
+
 ```bash
+cd doc-generator      # or: cd hello
 npm install
-# Set your DA token
-echo "VITE_DA_TOKEN=your_token_here" > .env.local
-npm run dev   # opens the dev entry, index.dev.html
+npm run dev           # local dev server
+npm run build         # compiles to ./dist (commit the result)
 ```
 
-### Build
-```bash
-npm run build
-# Compiles to dist/assets/ and writes the served entry to the repo-root index.html
-# (committed so da.live can serve it). See SERVING.md for why it's at the root.
-```
+The built `dist/` is committed because AEM Code Sync serves the repo's files directly (there is no CI build step). After `npm run build`, commit the updated `<tool>/dist/` and push — Code Sync mirrors it to the code bus in ~1–2 min.
+
+## Adding a new tool
+
+1. Create a new top-level folder `my-tool/` as a standard Vite + React app (copy `hello/` as a starting point).
+2. In its `vite.config.ts`, set the production `base` to the served subfolder:
+   ```ts
+   const base = command === 'serve' ? '/' : '/my-tool/dist/'
+   ```
+3. `npm install && npm run build` inside the folder, commit `my-tool/` (including `dist/`), and push.
+4. It's live at `https://da.live/app/maxn-adobe/pdp-document-generator/my-tool/dist/index`.
+
+No per-tool site registration is needed — the whole repo is one EDS site (see [SERVING.md](./SERVING.md)).
 
 ## Serving
 
-This repo is served through AEM Edge Delivery Services and embedded in da.live. See **[SERVING.md](./SERVING.md)** for the full setup (site registration, Code Sync, the root-entry requirement) and troubleshooting.
-
-## Stack
-
-- React 19 + TypeScript
-- Vite 8
-- Tailwind CSS v4
-- TanStack Query
+All tools are served through AEM Edge Delivery Services and embedded in da.live. See **[SERVING.md](./SERVING.md)** for how it works (site registration, Code Sync, the per-tool subfolder pattern) and an `x-error` troubleshooting table.
