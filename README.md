@@ -16,7 +16,7 @@ The **Generate** tab covers steps 1–4 above. A second **Document Manager** tab
 ## Usage
 
 ### From DA.live (typical)
-This is how the tool is used the vast majority of the time. Open it as an app from within DA.live — the DA shell automatically injects an auth token (via `https://da.live/nx/utils/sdk.js`), so no token setup is required.
+This is how the tool is used the vast majority of the time. Open it from within DA.live at **https://da.live/app/maxn-adobe/pdp-document-generator/index** — DA loads the tool in an iframe (its "Nx Shell") and automatically injects an auth token (via `https://da.live/nx/utils/sdk.js`), so no token setup is required. Add `?ref=<branch>` to preview a non-`main` branch.
 
 ### Local dev (rare — running outside DA.live)
 Only needed if you're running the app standalone, e.g. `npm run dev` opened directly in a plain browser tab rather than embedded in DA.live. In that case there's no DA shell to supply a token automatically, so you must provide one yourself:
@@ -24,14 +24,19 @@ Only needed if you're running the app standalone, e.g. `npm run dev` opened dire
 npm install
 # Set your DA token
 echo "VITE_DA_TOKEN=your_token_here" > .env.local
-npm run dev
+npm run dev   # opens the dev entry, index.dev.html
 ```
 
 ### Build
 ```bash
 npm run build
-# Outputs to dist/ — committed to the repo so it can be served via da.live
+# Compiles to dist/assets/ and writes the served entry to the repo-root index.html
+# (committed so da.live can serve it). See SERVING.md for why it's at the root.
 ```
+
+## Serving
+
+This repo is served through AEM Edge Delivery Services and embedded in da.live. See **[SERVING.md](./SERVING.md)** for the full setup (site registration, Code Sync, the root-entry requirement) and troubleshooting.
 
 ## Stack
 
